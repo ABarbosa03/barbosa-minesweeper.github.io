@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buscaminas - Selección de Modo</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <header>
+        <h1>Buscaminas</h1>
+    </header>
+    <div class="cards">
+        <div class="card red" id="easyMode">
+            <p class="tip">Fácil</p>
+            <p class="second-text">8x8, 10 minas</p>
+        </div>
+        <div class="card blue" id="mediumMode">
+            <p class="tip">Medio</p>
+            <p class="second-text">16x16, 40 minas</p>
+        </div>
+        <div class="card green" id="hardMode">
+            <p class="tip">Difícil</p>
+            <p class="second-text">16x30, 99 minas</p>
+        </div>
+        <div class="card yellow" id="veryHardMode">
+            <p class="tip">Muy Difícil</p>
+            <p class="second-text">24x24, 110 minas</p>
+        </div>
+        <div class="card purple" id="hardcoreMode">
+            <p class="tip">Hardcore</p>
+            <p class="second-text">30x30, 130 minas</p>
+        </div>
+        <div class="card pink" id="legendMode">
+            <p class="tip">Leyenda</p>
+            <p class="second-text">40x40, 160 minas</p>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('easyMode').addEventListener('click', () => {
+            redirectToMode(8, 8, 10);
+        });
+        document.getElementById('mediumMode').addEventListener('click', () => {
+            redirectToMode(16, 16, 40);
+        });
+        document.getElementById('hardMode').addEventListener('click', () => {
+            redirectToMode(16, 30, 99);
+        });
+        document.getElementById('veryHardMode').addEventListener('click', () => {
+            redirectToMode(24, 24, 110);
+        });
+        document.getElementById('hardcoreMode').addEventListener('click', () => {
+            redirectToMode(30, 30, 130);
+        });
+        document.getElementById('legendMode').addEventListener('click', () => {
+            redirectToMode(40, 40, 160);
+        });
+
+        function redirectToMode(rows, columns, mines) {
+            window.location.href = `mode.html?rows=${rows}&columns=${columns}&mines=${mines}`;
+        }
+    </script>
+</body>
+
+</html>

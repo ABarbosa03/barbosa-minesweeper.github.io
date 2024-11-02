@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buscaminas - Juego</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="card1">
+        <div class="card1-overlay"></div>
+        <div class="card1-inner">
+            <div id="gameContainer">
+                <div id="gameStatsContainer">
+                    <div id="mineCounter" class="loader">Minas: <span id="mineCount"></span></div>
+                    <div class="loader" id="timer">00:00</div>
+                </div>
+                <div id="gameBoard" class="hidden"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const rows = parseInt(urlParams.get('rows'));
+            const columns = parseInt(urlParams.get('columns'));
+            const mines = parseInt(urlParams.get('mines'));
+
+            if (isNaN(rows) || isNaN(columns) || isNaN(mines)) {
+                alert('Parámetros de configuración de juego inválidos.');
+                window.location.href = 'index.html';
+                return;
+            }
+
+            window.rows = rows;
+            window.columns = columns;
+            window.mineCount = mines;
+            window.mineCountOriginal = mines;
+            document.getElementById('mineCount').textContent = window.mineCount;
+
+            startGame(rows, columns, mines);
+        });
+
+        function startGame(rows, columns, mines) {
+            const gameBoardDiv = document.getElementById('gameBoard');
+            gameBoardDiv.classList.remove('hidden');
+            gameBoardDiv.innerHTML = '';
+            const board = [];
+
+            for (let r = 0; r < rows; r++) {
+                const row = [];
+                const rowDiv = document.createElement('div');
+                rowDiv.classList.add('row');
+                for (let c = 0; c < columns; c++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    cell.dataset.row = r;
+                    cell.dataset.column = c;
+                    cell.addEventListener('click', () => onCellClick(r, c));
+                    cell.addEventListener('contextmenu', (e) => {
+                        e.preventDefault();
+                        onCellRightClick(r, c);
+                    });
+                    rowDiv.appendChild(cell);
+                    row.push({
+                        hasMine: false,
+                        revealed: false,
+                        flagged: false
+                    });
+                }
+                gameBoardDiv.appendChild(rowDiv);
+                board.push(row);
+            }
+
+            placeMines(board, rows, columns, mines);
+            gameBoardDiv.dataset.board = JSON.stringify(board);
+        }
+
+        function placeMines(board, rows, columns, mines) {
+            let placedMines = 0;
+            while (placedMines < mines) {
+                const r = Math.floor(Math.random() * rows);
+                const c = Math.floor(Math.random() * columns);
+                if (!board[r][c].hasMine) {
+                    board[r][c].hasMine = true;
+                    placedMines++;
+                }
+            }
+        }
+
+        function onCellClick(row, column) {
+            if (!window.timerStarted) {
+                startTimer();
+                window.timerStarted = true;
+            }
+
+            const gameBoardDiv = document.getElementById('gameBoard');
+            const board = JSON.parse(gameBoardDiv.dataset.board);
+            const cell = board[row][column];
+
+            if (cell.revealed || cell.flagged) {
+                return;
+            }
+
+            if (cell.hasMine) {
+                showGameOverModal();
+                revealBoard(board, true);
+                return;
+            }
+
+            revealCell(board, row, column);
+            gameBoardDiv.dataset.board = JSON.stringify(board);
+
+            if (checkWin(board)) {
+                showWinModal();
+                revealBoard(board);
+            }
+        }
+
+        function onCellRightClick(row, column) {
+            const gameBoardDiv = document.getElementById('gameBoard');
+            const board = JSON.parse(gameBoardDiv.dataset.board);
+            const cell = board[row][column];
+            const cellDiv = document.querySelector(`.cell[data-row='${row}'][data-column='${column}']`);
+
+            if (cell.revealed) {
+                return;
+            }
+
+            cell.flagged = !cell.flagged;
+            cellDiv.classList.toggle('flagged', cell.flagged);
+
+            const mineCounterElement = document.getElementById('mineCount');
+            window.mineCount += cell.flagged ? -1 : 1;
+            mineCounterElement.textContent = window.mineCount;
+
+            gameBoardDiv.dataset.board = JSON.stringify(board);
+        }
+
+        function revealCell(board, row, column) {
+            const cell = board[row][column];
+            if (cell.revealed || cell.flagged) {
+                return;
+            }
+
+            cell.revealed = true;
+            const cellDiv = document.querySelector(`.cell[data-row='${row}'][data-column='${column}']`);
+            cellDiv.classList.add('revealed');
+
+            if (cell.hasMine) {
+                cellDiv.textContent = '💣';
+                return;
+            }
+
+            const mineCount = countAdjacentMines(board, row, column);
+            if (mineCount > 0) {
+                cellDiv.textContent = mineCount;
+            } else {
+                revealAdjacentCells(board, row, column);
+            }
+        }
+
+        function countAdjacentMines(board, row, column) {
+            let count = 0;
+            for (let r = row - 1; r <= row + 1; r++) {
+                for (let c = column - 1; c <= column + 1; c++) {
+                    if (r >= 0 && r < board.length && c >= 0 && c < board[0].length && board[r][c].hasMine) {
+                        count++;
+                    }
+                }
+            }
+            return count;
+        }
+
+        function revealAdjacentCells(board, row, column) {
+            for (let r = row - 1; r <= row + 1; r++) {
+                for (let c = column - 1; c <= column + 1; c++) {
+                    if (r >= 0 && r < board.length && c >= 0 && c < board[0].length) {
+                        revealCell(board, r, c);
+                    }
+                }
+            }
+        }
+
+        function revealBoard(board, showMines = false) {
+            for (let r = 0; r < board.length; r++) {
+                for (let c = 0; c < board[0].length; c++) {
+                    const cell = board[r][c];
+                    if (showMines && cell.hasMine) {
+                        const cellDiv = document.querySelector(`.cell[data-row='${r}'][data-column='${c}']`);
+                        cellDiv.textContent = '💣';
+                        cellDiv.classList.add('revealed');
+                    } else if (!cell.revealed) {
+                        revealCell(board, r, c);
+                    }
+                }
+            }
+        }
+
+        function checkWin(board) {
+            for (let r = 0; r < board.length; r++) {
+                for (let c = 0; c < board[0].length; c++) {
+                    const cell = board[r][c];
+                    if (!cell.hasMine && !cell.revealed) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        function showGameOverModal() {
+            stopTimer();
+            const modal = document.createElement('div');
+            modal.classList.add('modal');
+            modal.innerHTML = `
+        <div class="modal-content">
+          <h2>Game Over!</h2>
+          <p>You clicked on a mine. Better luck next time!</p>
+          <button id="restartGame" class="cta restart">Restart Game</button>
+          <button id="selectMode" class="cta select-mode">Select Mode</button>
+        </div>
+      `;
+            document.body.appendChild(modal);
+            document.getElementById('restartGame').addEventListener('click', () => {
+                document.body.removeChild(modal);
+                resetGameStats();
+                startGame(window.rows, window.columns, window.mineCount);
+            });
+            document.getElementById('selectMode').addEventListener('click', () => {
+                document.body.removeChild(modal);
+                window.location.href = 'index.html';
+            });
+        }
+
+        function showWinModal() {
+            stopTimer();
+            const modal = document.createElement('div');
+            modal.classList.add('modal');
+            modal.innerHTML = `
+        <div class="modal-content">
+          <h2>Congratulations!</h2>
+          <p>You have successfully cleared all the mines!</p>
+          <button id="restartGameWin" class="cta restart">Restart Game</button>
+        </div>
+      `;
+            document.body.appendChild(modal);
+            document.getElementById('restartGameWin').addEventListener('click', () => {
+                document.body.removeChild(modal);
+                resetGameStats();
+                startGame(window.rows, window.columns, window.mineCount);
+            });
+        }
+
+        function startTimer() {
+            let timer = 0;
+            const timerElement = document.getElementById('timer');
+            window.timerInterval = setInterval(() => {
+                timer++;
+                timerElement.textContent = `${String(Math.floor(timer / 60)).padStart(2, '0')}:${String(timer % 60).padStart(2, '0')}`;
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(window.timerInterval);
+        }
+
+        function resetGameStats() {
+            window.mineCount = window.mineCountOriginal;
+            document.getElementById('mineCount').textContent = window.mineCount;
+            const timerElement = document.getElementById('timer');
+            timerElement.textContent = '00:00';
+            window.timerStarted = false;
+            stopTimer();
+        }
+    </script>
+</body>
+
+</html>
